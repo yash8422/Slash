@@ -1,16 +1,43 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from PIL import Image
+import io
+import requests
 
 st.set_page_config(page_title="Slash Dynamics", layout="wide")
 
-# Theme toggle
+# 🌙 Theme switch
 theme = st.radio("Choose Theme:", ["Dark", "Light"], horizontal=True)
 plotly_theme = "plotly_dark" if theme == "Dark" else "plotly_white"
 
-st.title("📊 Slash Report - Multi Campaign & Process Insights")
+# 👋 Cartoon avatar greeting
+st.markdown("## 👋 Hello there!")
+st.image("https://github.com/user-attachments/assets/fe6dcdc0-bb78-42c7-a60f-f019fc910378", width=120)  # A friendly cartoon image
 
-uploaded_file = st.file_uploader("Upload your call log file (.csv or .xlsx)", type=["csv", "xlsx"])
+st.markdown("""
+### Welcome to *Slash Report*!  
+I'm your friendly assistant 🙂  
+What would you like to explore today?
+""")
+
+# 🎯 Report focus options
+option = st.radio(
+    "📊 Select a report section:",
+    [
+        "Call Volume Trends",
+        "Agent Performance (Talktime, Dispositions, Call Count)",
+        "Daily/Hourly Call Patterns",
+        "Answered vs Unanswered Calls",
+        "Disposition Flow",
+        "Process/Campaign Summary",
+        "Repeat Callers",
+        "Weekday Patterns"
+    ]
+)
+
+# Upload section
+uploaded_file = st.file_uploader("📁 Upload your call log file (.csv or .xlsx)", type=["csv", "xlsx"])
 
 if uploaded_file:
     try:
@@ -46,50 +73,49 @@ if uploaded_file:
             selected_processes = st.multiselect("Select Process(es):", processes, default=processes)
             df = df[df['PROCESS'].isin(selected_processes)]
 
-        st.subheader("📌 Quick Summary")
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("📞 Total Calls", len(df))
-        with col2:
-            st.metric("👨‍💼 Unique Agents", df['AGENT NAME'].nunique())
-        with col3:
-            avg_queue_time = df[df.get('CALLING MODE', '').astype(str).str.lower().str.contains('inbound', na=False)]['QUEUE TIME'].mean() if 'CALLING MODE' in df.columns else 0
-            st.metric("⏳ Avg Queue Time (Inbound)", round(avg_queue_time, 2))
-        with col4:
-            st.metric("📴 Failed Calls (0:00)", df['Failed Call'].sum())
+        # 🔍 Report Sections
+        if option == "Call Volume Trends":
+            if 'DATE' in df.columns:
+                st.subheader("📈 Daily Call Volume")
+                daily_calls = df.groupby('DATE').size().reset_index(name='Call Count')
+                fig = px.bar(daily_calls, x='DATE', y='Call Count', title='Calls per Day')
+                fig.update_layout(template=plotly_theme, xaxis_tickangle=-45, font=dict(size=14))
+                st.plotly_chart(fig, use_container_width=True)
 
-        if 'DATE' in df.columns:
-            st.subheader("📈 Daily Call Volume")
-            daily_calls = df.groupby('DATE').size().reset_index(name='Call Count')
-            fig = px.bar(daily_calls, x='DATE', y='Call Count', title='Calls per Day')
-            fig.update_layout(template=plotly_theme, xaxis_tickangle=-45, font=dict(size=14))
-            st.plotly_chart(fig, use_container_width=True)
+        elif option == "Agent Performance (Talktime, Dispositions, Call Count)":
+            if 'TALKTIME' in df.columns:
+                df['TALKTIME'] = pd.to_numeric(df['TALKTIME'], errors='coerce').fillna(0)
+                df = df[df['TALKTIME'] >= 0]
+                agent_talk = df.groupby('AGENT NAME')['TALKTIME'].sum().reset_index()
+                agent_talk['TALKTIME_MIN'] = (agent_talk['TALKTIME'] / 60).round(2)
+                st.subheader("🎙 Agent Talk Time (Minutes)")
+                fig = px.bar(agent_talk.sort_values(by='TALKTIME_MIN', ascending=False),
+                             x='AGENT NAME', y='TALKTIME_MIN', color='TALKTIME_MIN',
+                             title='Total Talk Time by Agent (Minutes)',
+                             labels={'TALKTIME_MIN': 'Talk Time (min)', 'AGENT NAME': 'Agent'})
+                fig.update_layout(template=plotly_theme, xaxis_tickangle=-45, font=dict(size=14))
+                st.plotly_chart(fig, use_container_width=True)
 
-        if 'DISPOSE' in df.columns:
-            st.subheader("📊 Disposition Distribution")
-            dispose_counts = df['DISPOSE'].value_counts().reset_index()
-            dispose_counts.columns = ['Disposition', 'Count']
-            fig = px.bar(dispose_counts, x='Disposition', y='Count',
-                         title='Disposition Counts',
-                         labels={'Count': 'Number of Calls'})
-            fig.update_layout(template=plotly_theme, xaxis_tickangle=-45, font=dict(size=14))
-            st.plotly_chart(fig, use_container_width=True)
+            if 'DISPOSE' in df.columns:
+                agent_disp = df.groupby(['AGENT NAME', 'DISPOSE']).size().reset_index(name='Count')
+                st.subheader("🗂 Agent Disposition Count")
+                fig = px.bar(agent_disp, x='AGENT NAME', y='Count', color='DISPOSE', barmode='stack')
+                fig.update_layout(template=plotly_theme, xaxis_tickangle=-45, font=dict(size=14))
+                st.plotly_chart(fig, use_container_width=True)
 
-        if 'TALKTIME' in df.columns:
-            df['TALKTIME'] = pd.to_numeric(df['TALKTIME'], errors='coerce').fillna(0)
-            df = df[df['TALKTIME'] >= 0]
-            agent_talk = df.groupby('AGENT NAME')['TALKTIME'].sum().reset_index()
-            agent_talk['TALKTIME_MIN'] = (agent_talk['TALKTIME'] / 60).round(2)
-            st.subheader("🎙 Agent-wise Talk Time (Minutes)")
-            fig = px.bar(agent_talk.sort_values(by='TALKTIME_MIN', ascending=False),
-                         x='AGENT NAME', y='TALKTIME_MIN', color='TALKTIME_MIN',
-                         title='Total Talk Time by Agent (in Minutes)',
-                         labels={'TALKTIME_MIN': 'Talk Time (min)', 'AGENT NAME': 'Agent'})
-            fig.update_layout(template=plotly_theme, xaxis_tickangle=-45, font=dict(size=14))
-            st.plotly_chart(fig, use_container_width=True)
+        elif option == "Disposition Flow":
+            if 'DISPOSE' in df.columns:
+                st.subheader("🔁 Disposition Flow")
+                dispose_counts = df['DISPOSE'].value_counts().reset_index()
+                dispose_counts.columns = ['Disposition', 'Count']
+                fig = px.bar(dispose_counts, x='Disposition', y='Count',
+                             title='Disposition Counts',
+                             labels={'Count': 'Number of Calls'})
+                fig.update_layout(template=plotly_theme, xaxis_tickangle=-45, font=dict(size=14))
+                st.plotly_chart(fig, use_container_width=True)
 
-        st.subheader("📋 Raw Data Preview")
-        st.dataframe(df.head(100))
+        else:
+            st.warning("📌 This section is under development. Stay tuned!")
 
 else:
-    st.info("Please upload a .csv or .xlsx file to begin.")
+    st.info("📤 Please upload a call log file to get started.")
