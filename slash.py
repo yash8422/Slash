@@ -1,43 +1,22 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from PIL import Image
-import io
-import requests
 
 st.set_page_config(page_title="Slash Dynamics", layout="wide")
 
-# 🌙 Theme switch
+# 🌙 Theme switcher (always visible)
 theme = st.radio("Choose Theme:", ["Dark", "Light"], horizontal=True)
 plotly_theme = "plotly_dark" if theme == "Dark" else "plotly_white"
 
-# 👋 Cartoon avatar greeting
-st.markdown("## 👋 Hello there!")
-st.image("https://github.com/user-attachments/assets/fe6dcdc0-bb78-42c7-a60f-f019fc910378", width=120)  # A friendly cartoon image
+# 👋 Cartoon assistant + your GitHub-hosted image + welcome
+st.image("https://svgshare.com/i/14fr.svg", width=120)
+st.image("https://github.com/user-attachments/assets/fe6dcdc0-bb78-42c7-a60f-f019fc910378", width=200)
 
-st.markdown("""
-### Welcome to *Slash Report*!  
-I'm your friendly assistant 🙂  
-What would you like to explore today?
-""")
+st.markdown("## 👋 Welcome to *Slash Dynamics*!")
+st.markdown("I'm your friendly assistant 🤖 here to help you analyze your call data.")
 
-# 🎯 Report focus options
-option = st.radio(
-    "📊 Select a report section:",
-    [
-        "Call Volume Trends",
-        "Agent Performance (Talktime, Dispositions, Call Count)",
-        "Daily/Hourly Call Patterns",
-        "Answered vs Unanswered Calls",
-        "Disposition Flow",
-        "Process/Campaign Summary",
-        "Repeat Callers",
-        "Weekday Patterns"
-    ]
-)
-
-# Upload section
-uploaded_file = st.file_uploader("📁 Upload your call log file (.csv or .xlsx)", type=["csv", "xlsx"])
+# 📁 File uploader
+uploaded_file = st.file_uploader("📤 Please upload your call log file (.csv or .xlsx)", type=["csv", "xlsx"])
 
 if uploaded_file:
     try:
@@ -73,7 +52,22 @@ if uploaded_file:
             selected_processes = st.multiselect("Select Process(es):", processes, default=processes)
             df = df[df['PROCESS'].isin(selected_processes)]
 
-        # 🔍 Report Sections
+        # 📊 Ask user what to explore
+        option = st.radio(
+            "📊 What would you like to explore today?",
+            [
+                "Call Volume Trends",
+                "Agent Performance (Talktime, Dispositions, Call Count)",
+                "Daily/Hourly Call Patterns",
+                "Answered vs Unanswered Calls",
+                "Disposition Flow",
+                "Process/Campaign Summary",
+                "Repeat Callers",
+                "Weekday Patterns"
+            ]
+        )
+
+        # 🎯 Report Sections
         if option == "Call Volume Trends":
             if 'DATE' in df.columns:
                 st.subheader("📈 Daily Call Volume")
