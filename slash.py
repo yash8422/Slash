@@ -76,21 +76,22 @@ if uploaded_file:
 
         elif option == "Agent Performance (Talktime, Dispositions, Call Count)":
             if 'AGENT NAME' in df.columns:
+                st.subheader("🧾 Agent Total Talk Time List (in Minutes)")
                 talk_df = df.groupby('AGENT NAME')['TALKTIME'].sum().reset_index()
                 talk_df['TALKTIME_MIN'] = (talk_df['TALKTIME'] / 60).round(2)
-                fig = px.bar(talk_df.sort_values(by='TALKTIME_MIN', ascending=False),
-                             x='AGENT NAME', y='TALKTIME_MIN', color='TALKTIME_MIN',
-                             title='Total Talk Time by Agent (in Minutes)',
-                             labels={'TALKTIME_MIN': 'Talk Time (min)', 'AGENT NAME': 'Agent'})
-                fig.update_layout(template=plotly_theme, xaxis_tickangle=-45)
-                st.plotly_chart(fig, use_container_width=True)
+                agent_selected = st.selectbox("Select an agent to view their total talk time:", talk_df['AGENT NAME'])
+                selected_talk = talk_df[talk_df['AGENT NAME'] == agent_selected]['TALKTIME_MIN'].values[0]
+                st.success(f"🕒 Total Talk Time for {agent_selected}: {selected_talk} minutes")
 
-                dispo_df = df.groupby(['AGENT NAME', 'DISPOSE']).size().reset_index(name='Count')
-                fig = px.bar(dispo_df, x='AGENT NAME', y='Count', color='DISPOSE', barmode='stack',
-                             title='Agent Disposition Count')
-                fig.update_layout(template=plotly_theme, xaxis_tickangle=-45)
-                st.plotly_chart(fig, use_container_width=True)
+                if 'DISPOSE' in df.columns:
+                    st.subheader("🗂️ Agent Disposition Count")
+                    dispo_df = df.groupby(['AGENT NAME', 'DISPOSE']).size().reset_index(name='Count')
+                    fig = px.bar(dispo_df, x='AGENT NAME', y='Count', color='DISPOSE', barmode='stack',
+                                 title='Agent Disposition Count')
+                    fig.update_layout(template=plotly_theme, xaxis_tickangle=-45)
+                    st.plotly_chart(fig, use_container_width=True)
 
+                st.subheader("📞 Agent Call Count")
                 call_count = df.groupby('AGENT NAME').size().reset_index(name='Call Count')
                 fig = px.bar(call_count, x='AGENT NAME', y='Call Count', color='Call Count',
                              title='Agent Call Count')
