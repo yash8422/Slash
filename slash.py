@@ -56,8 +56,7 @@ if uploaded_file:
             selected_processes = st.multiselect("Select Process(es):", processes, default=processes)
             df = df[df['PROCESS'].isin(selected_processes)]
 
-        option = st.radio("
-What would you like to explore today?", [
+        option = st.radio("What would you like to explore today?", [
             "Call Volume Trends",
             "Agent Performance (Talktime, Dispositions, Call Count)",
             "Daily/Hourly Call Patterns",
